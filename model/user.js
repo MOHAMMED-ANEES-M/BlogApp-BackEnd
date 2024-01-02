@@ -37,8 +37,8 @@ const userSchema = mongoose.Schema({
       },
       number: {
         type: Number,
-        minlength: 3,
-        maxlength: 12,
+        min: 1000000000,
+        max: 9999999999,
         required: true,
       },
       state: {
@@ -53,5 +53,8 @@ const userSchema = mongoose.Schema({
       },
 })
 
+
 const User = mongoose.model('User',userSchema,'users');
+
+
 module.exports=User

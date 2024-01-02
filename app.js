@@ -2,6 +2,7 @@ const express=require('express')
 const app=express()
 const mongoose = require('mongoose');
 const User = require('./model/user');
+const BlogPost = require('./model/blogs');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 var jwt = require('jsonwebtoken');
@@ -22,7 +23,7 @@ mongoose.connect('mongodb://127.0.0.1:27017/BlogApp')
 
   const verifyToken=(req,res,next)=>{
     const token= req.headers['authorization'];
-    console.log(token);
+    console.log(token,'token');
 
     if(!token){
         return res.status(403).json({ message: 'Token is not provided'})
@@ -38,6 +39,23 @@ mongoose.connect('mongodb://127.0.0.1:27017/BlogApp')
     });
   };
 
+
+  const verifyAdmin = async (req, res, next) => {
+
+    const email = req.body.email; 
+    const password = req.body.password;
+
+    if (req.body.email === "admin@gmail.com" && req.body.password === "11111") {
+      const token = jwt.sign({ id: express.response.id, username: express.response.username }, 'abc');
+      res.locals.adminToken = token
+      console.log('token: ',token);
+    }
+    next();
+  };
+
+  
+
+  
 
   app.get('/find', verifyToken, async (req,res)=>{
     let response=await User.find()
@@ -66,14 +84,15 @@ mongoose.connect('mongodb://127.0.0.1:27017/BlogApp')
 
     try{
 
-        const { username, email, password } = req.body;
+        const { username, email, password, name, bio, number, state, country } = req.body;
 
         if (!password) {
             return res.status(400).json({ message: 'Password is required' });
         }
 
-         // Email validation using Mongoose schema validation
-         const newUser = new User({ username, email, password });
+        const newUser = new User({ username, email, password, name, bio, number, state, country });
+
+        // Email validation using Mongoose schema validation
          const validationError = newUser.validateSync();
          if (validationError && validationError.errors && validationError.errors.email) {
              return res.status(400).json({ message: validationError.errors.email.message });
@@ -94,14 +113,22 @@ mongoose.connect('mongodb://127.0.0.1:27017/BlogApp')
 
 
 
-  app.post('/login', async (req,res)=>{
+  app.post('/login', verifyAdmin, async (req,res)=>{
 
     const  {username, email, password } = req.body
     console.log(req.body);
 
     try{
         if (email && password) {
-            let response = await User.findOne({email})
+
+          token = res.locals.adminToken
+
+          let response = await User.findOne({email})
+          
+          if (token) {
+            return res.status(200).json({ admin: true, token, username: response.username, id: response.id });
+          }
+          
             console.log(response);
             if (response) {
                 const passwordMatch = await bcrypt.compare(password,response.password);
@@ -125,20 +152,79 @@ mongoose.connect('mongodb://127.0.0.1:27017/BlogApp')
   })
 
   app.put('/update/:id',async(req,res)=>{
+
     let id =req.params.id
-    
+    const  {username, email, name, state, country } = req.body
+    console.log(username,'username');
 
-    const response = await User.findByIdAndUpdate(id, req.body);
+    try{
+        
+        const response = await User.findByIdAndUpdate(id, req.body);
+        
+        if (!response) {
+            return res.status(404).json({ message: 'User not found' });
+          }    
+          
+          console.log(response);
+          res.json(response)
+        
+    }catch(err){
+      console.log(err.message);
+      res.status(500).json({ message: err.message });
+    }
+})
 
-    if (!response) {
-      return res.status(404).json({ message: 'User not found' });
-    }    
-    
+app.post('/write', async (req,res)=>{
+
+  const {title,content,author}=req.body
+  console.log(req.body);
+  try{
+    let newPost=new BlogPost(req.body)
+    let response=await newPost.save()
     console.log(response);
     res.json(response)
+}
+catch(err){
+    console.log(err.message);
+    res.status(500).json({ message: err.message })
+}
 })
 
 
+app.get('/findBlog', async (req,res)=>{
+  let response=await BlogPost.find()
+  // console.log(response);
+  res.json(response)
+})
+
+
+app.get('/findOneBlog/:id',async(req,res)=>{
+  let id =req.params.id
+  console.log(id,'id');
+  try{
+
+    const response = await BlogPost.findById(id);
+    
+    if (!response) {
+      return res.status(404).json({ message: 'Blog not found' });
+    }    
+    
+    console.log(response,'response');
+    res.json(response)
+  }catch(err){
+    console.log(err.message);
+    res.status(500).json({ message: err.message })
+  }
+})
+
+
+
+app.delete('/deleteBlog/:id', async (req,res)=>{
+  let id =req.params.id
+  let response = await BlogPost.findByIdAndDelete(id)
+  res.json(response)
+  console.log(response);
+})
 
 
   app.listen(5000)
