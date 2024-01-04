@@ -1,4 +1,5 @@
 const mongoose=require('mongoose')
+const { isEmail } = require('validator');
 
 const userSchema = mongoose.Schema({
     username : {
@@ -13,10 +14,7 @@ const userSchema = mongoose.Schema({
         minlength : 3,
         required : true,
         validate: {
-            validator: function (value) {
-                // Use a regular expression for email validation
-                return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-            },
+            validator: value => isEmail(value),
             message: 'Invalid email address',
         },
     },

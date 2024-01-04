@@ -6,9 +6,13 @@ const BlogPost = require('./model/blogs');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 var jwt = require('jsonwebtoken');
+const emailValidator = require('email-validator');
+
+
 
 
 var cors = require('cors');
+const { default: isEmail } = require('validator/lib/isemail');
 
 app.use(cors())
 
@@ -154,10 +158,48 @@ mongoose.connect('mongodb://127.0.0.1:27017/BlogApp')
   app.put('/update/:id',async(req,res)=>{
 
     let id =req.params.id
-    const  {username, email, name, state, country } = req.body
-    console.log(username,'username');
+    const  {username, email, name, bio, number, state, country } = req.body
+
 
     try{
+
+      const requiredFields = {username, email, name, bio, number, state, country };
+    
+      for (const field in requiredFields) {
+        if (!requiredFields[field]) {
+            const errorMessage = `The field '${field}' is required.`;
+            return res.status(400).json({ message: errorMessage });
+        }
+        }
+    
+        if ( number.toString().length !== 10 ) {
+          const errorMessage = 'Number must be a valid number with a length of 10 digits.';
+          return res.status(400).json({ message: errorMessage });
+      }
+
+      const isValidEmail = emailValidator.validate(email);
+
+      if (!isValidEmail) {
+        res.status(400).json({ message: 'Invalid email address' });
+        return;
+      }
+
+      const stringFields = { username, name, bio, state, country }
+
+      for(const field in stringFields){
+
+        const isTextOnly = /^[a-zA-Z ]+$/.test(stringFields[field]);
+        if ( !isTextOnly ) {
+          const errorMessage = `${field} doesn't allow special characters.`;
+          return res.status(400).json({ message: errorMessage });
+      }
+
+        if ( stringFields[field].toString().length < 3 ) {
+          const errorMessage = `${field} must be with a length of at least 3 digits.`;
+          return res.status(400).json({ message: errorMessage });
+      }
+
+  }
         
         const response = await User.findByIdAndUpdate(id, req.body);
         
